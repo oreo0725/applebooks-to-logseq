@@ -1,18 +1,16 @@
 """
-Logseq Sync - 封裝 Logseq API 操作
+Logseq Sync - Encapsulate Logseq API operations
 """
 import os
 import requests
 from typing import Any
 from pathlib import Path
 
-# 載入 .env 檔案
 try:
     from dotenv import load_dotenv
     env_path = Path(__file__).parent / ".env"
     load_dotenv(dotenv_path=env_path)
 except ImportError:
-    # 如果沒有安裝 python-dotenv，就跳過
     pass
 
 
@@ -28,7 +26,7 @@ class LogseqClient:
         }
     
     def call(self, method: str, *args) -> Any | None:
-        """呼叫 Logseq API"""
+        """Call Logseq API"""
         payload = {
             "method": method,
             "args": list(args)
@@ -38,32 +36,32 @@ class LogseqClient:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.ConnectionError:
-            print("❌ 無法連接 Logseq API，請確認 Logseq 已啟動且 API 已開啟")
+            print("❌ Unable to connect to Logseq API. Please ensure Logseq is running and the API is enabled.")
             return None
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 401:
-                print("❌ Logseq API 認證失敗，請確認 LOGSEQ_TOKEN 環境變數")
+                print("❌ Logseq API authentication failed. Please check your LOGSEQ_TOKEN environment variable.")
             else:
-                print(f"❌ Logseq API 錯誤: {e}")
+                print(f"❌ Logseq API error: {e}")
             return None
         except requests.exceptions.RequestException as e:
-            print(f"❌ Logseq API 請求失敗: {e}")
+            print(f"❌ Logseq API request failed: {e}")
             return None
     
     def check_connection(self) -> bool:
-        """檢查 API 連線"""
+        """Check API connection"""
         result = self.call("logseq.App.getInfo")
         if result:
-            print(f"✅ 已連接 Logseq")
+            print(f"✅ Connected to Logseq")
             return True
         return False
     
     def get_page(self, page_name: str) -> dict | None:
-        """取得 page 資訊"""
+        """Get page info"""
         return self.call("logseq.Editor.getPage", page_name)
     
     def create_page(self, page_name: str, properties: dict | None = None) -> dict | None:
-        """建立新 page"""
+        """Create a new page"""
         return self.call(
             "logseq.Editor.createPage",
             page_name,
@@ -72,17 +70,16 @@ class LogseqClient:
         )
     
     def get_page_blocks(self, page_name: str) -> list | None:
-        """取得 page 的所有 blocks"""
+        """Get all blocks of a page"""
         return self.call("logseq.Editor.getPageBlocksTree", page_name)
     
     def delete_block(self, block_uuid: str) -> bool:
-        """刪除 block"""
+        """Delete a block"""
         result = self.call("logseq.Editor.removeBlock", block_uuid)
         return result is not None
     
     def insert_block(self, page_name: str, content: str, properties: dict | None = None) -> dict | None:
-        """在 page 插入 block"""
-        # 先取得 page
+        """Insert a block into a page"""
         page = self.get_page(page_name)
         if not page:
             return None
@@ -96,14 +93,14 @@ class LogseqClient:
     
     def insert_batch_block(self, parent_uuid: str, batch_blocks: list[dict]) -> dict | None:
         """
-        批量插入 blocks，支援嵌套子區塊
+        Batch insert blocks, supporting nested sub-blocks
         
         Args:
-            parent_uuid: 父 block 或 page 的 uuid
-            batch_blocks: IBatchBlock 列表，格式如 [{"content": "...", "children": [...]}]
+            parent_uuid: UUID of the parent block or page
+            batch_blocks: List of IBatchBlock, format like [{"content": "...", "children": [...]}]
             
         Returns:
-            建立的 block 資訊
+            Created block info
         """
         return self.call(
             "logseq.Editor.insertBatchBlock",
@@ -114,48 +111,41 @@ class LogseqClient:
     
     def update_page_content(self, page_name: str, content: str) -> bool:
         """
-        更新 page 內容（覆寫）
+        Update page content (overwrite)
         
-        支援使用 tab 縮排建立子區塊
+        Supports using tab indentation for sub-blocks
         """
-        # 確保 page 存在
         page = self.get_page(page_name)
         if not page:
             page = self.create_page(page_name)
             if not page:
-                print(f"❌ 無法建立 page: {page_name}")
+                print(f"❌ Unable to create page: {page_name}")
                 return False
         
-        # 刪除現有 blocks
         blocks = self.get_page_blocks(page_name)
         if blocks:
             for block in blocks:
                 if block.get("uuid"):
                     self.delete_block(block["uuid"])
         
-        # 解析內容為 batch blocks 結構
         batch_blocks = self._parse_content_to_blocks(content)
         
         if batch_blocks:
-            # 使用 insertBatchBlock 批量插入
             self.insert_batch_block(page.get("uuid"), batch_blocks)
         
         return True
     
     def _parse_content_to_blocks(self, content: str) -> list[dict]:
         """
-        解析 markdown 內容為 IBatchBlock 結構
+        Parse markdown content into IBatchBlock structure
         
-        支援多層級縮排 (Tab 或 2空格)
+        Supports multi-level indentation (Tab or 2 spaces)
         """
         lines = content.strip().split("\n")
         root_blocks = []
-        # stack 儲存 (indent_level, block_reference)
-        # 用來追蹤當前的父層級
         stack = [] 
         
         for line in lines:
-            # 計算縮排層級
             indent_level = 0
             leading_ws = line[:len(line) - len(line.lstrip())]
             
@@ -169,7 +159,6 @@ class LogseqClient:
             
             stripped = line.lstrip()
             
-            # 移除 "- " 前綴
             if stripped.startswith("- "):
                 stripped = stripped[2:]
             
@@ -179,35 +168,31 @@ class LogseqClient:
             new_block = {"content": stripped, "children": []}
             
             if indent_level == 0:
-                # 頂層 block
                 root_blocks.append(new_block)
-                # 重置 stack，只保留這一個頂層
                 stack = [(0, new_block)]
             else:
-                # 尋找正確的父層級
-                # 當 stack 頂端的層級 >= 目前層級，表示要往回找父層
+                # When current level <= stack level, go back to find parent
                 while stack and stack[-1][0] >= indent_level:
                     stack.pop()
                 
                 if stack:
-                    # 找到父層，加入 children
+                    # Found parent, add to children
                     parent_block = stack[-1][1]
                     parent_block["children"].append(new_block)
-                    # 將自己推入 stack，因為自己可能是下一層的父層
+                    # Push self to stack as it might be a parent for the next level
                     stack.append((indent_level, new_block))
                 else:
-                    # 異常狀況：有縮排但找不到父層，視為頂層處理
+                    # Abnormal case: has indentation but no parent found, treat as root
                     root_blocks.append(new_block)
                     stack = [(indent_level, new_block)]
         
-        # 遞迴清理空的 children (Logseq API prefer undefined/missing children over empty list sometimes, but empty list works too. 
-        # API verification showed empty children list is fine, but cleaning up is cleaner structure)
+        # Cleanup empty children recursive
         self._cleanup_empty_children(root_blocks)
         
         return root_blocks
 
     def _cleanup_empty_children(self, blocks: list[dict]) -> None:
-        """遞迴清理空的 children 欄位"""
+        """Recursively cleanup empty children fields"""
         for block in blocks:
             if "children" in block:
                 if not block["children"]:
@@ -218,21 +203,21 @@ class LogseqClient:
 
 def sync_book_to_logseq(client: LogseqClient, page_name: str, content: str) -> bool:
     """
-    同步書籍到 Logseq
+    Sync book to Logseq
     
     Args:
         client: Logseq client
-        page_name: Page 名稱
-        content: Page 內容
+        page_name: Page name
+        content: Page content
         
     Returns:
-        是否成功
+        Whether successful
     """
-    print(f"📖 同步書籍: {page_name}")
+    print(f"📖 Syncing book: {page_name}")
     
     if client.update_page_content(page_name, content):
-        print(f"  ✅ 同步成功")
+        print(f"  ✅ Sync success")
         return True
     else:
-        print(f"  ❌ 同步失敗")
+        print(f"  ❌ Sync failed")
         return False

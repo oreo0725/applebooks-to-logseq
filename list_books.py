@@ -1,5 +1,5 @@
 """
-List Books - 讀取 Apple Books 書籍列表
+List Books - Read Apple Books book list
 """
 import sqlite3
 from pathlib import Path
@@ -7,7 +7,7 @@ from datetime import datetime
 
 
 def convert_apple_time(timestamp):
-    """Apple 的時間戳記轉換函數"""
+    """Apple timestamp conversion function"""
     if not timestamp:
         return None
     apple_epoch = datetime(2001, 1, 1)
@@ -18,22 +18,22 @@ def convert_apple_time(timestamp):
 
 
 def get_library_db_path() -> Path:
-    """取得 BKLibrary sqlite 路徑"""
+    """Get BKLibrary sqlite path"""
     library_base = Path.home() / "Library/Containers/com.apple.iBooksX/Data/Documents/BKLibrary"
     library_files = list(library_base.glob("BKLibrary*.sqlite"))
     
     if not library_files:
-        raise RuntimeError("找不到 BKLibrary sqlite，請確認 Apple Books 有同步完成")
+        raise RuntimeError("BKLibrary sqlite not found, please ensure Apple Books sync is complete")
     
     return library_files[0]
 
 
 def get_all_books() -> list[dict]:
     """
-    取得 Apple Books 中所有書籍
+    Get all books from Apple Books
     
     Returns:
-        書籍列表，每個書籍包含 asset_id, title, author 等資訊
+        Book list, each containing asset_id, title, author, etc.
     """
     library_db_path = get_library_db_path()
     conn = sqlite3.connect(library_db_path)
@@ -68,7 +68,7 @@ def get_all_books() -> list[dict]:
         books.append({
             "asset_id": asset_id,
             "title": title,
-            "author": author or "未知",
+            "author": author or "Unknown",
             "kind": kind,
             "language": language,
             "page_count": page_count,
@@ -84,61 +84,61 @@ def get_all_books() -> list[dict]:
 
 
 def print_books(books: list[dict]) -> None:
-    """顯示書籍列表"""
+    """Display book list"""
     if not books:
-        print("沒有找到任何書籍")
+        print("No books found")
         return
     
-    print(f"總共找到 {len(books)} 本書\n")
+    print(f"Total found {len(books)} books\n")
     print("=" * 120)
     
     for idx, book in enumerate(books, 1):
         print(f"\n📚 [{idx}] {book['title']}")
-        print(f"   作者: {book['author']}")
+        print(f"   Author: {book['author']}")
         
         if book['kind']:
-            print(f"   類型: {book['kind']}")
+            print(f"   Kind: {book['kind']}")
         
         if book['language']:
-            print(f"   語言: {book['language']}")
+            print(f"   Language: {book['language']}")
         
         if book['page_count']:
-            print(f"   頁數: {book['page_count']}")
+            print(f"   Page Count: {book['page_count']}")
         
         if book['reading_progress'] is not None:
             progress_percent = book['reading_progress'] * 100
-            print(f"   閱讀進度: {progress_percent:.1f}%")
+            print(f"   Reading Progress: {progress_percent:.1f}%")
         
         if book['is_finished']:
-            print(f"   狀態: ✅ 已完成")
+            print(f"   Status: ✅ Finished")
         elif book['reading_progress'] and book['reading_progress'] > 0:
-            print(f"   狀態: 📖 閱讀中")
+            print(f"   Status: 📖 Reading")
         else:
-            print(f"   狀態: 🆕 未開始")
+            print(f"   Status: 🆕 Not started")
         
         if book['last_open']:
-            print(f"   最後開啟: {book['last_open']}")
+            print(f"   Last Opened: {book['last_open']}")
         
         if book['genre']:
-            print(f"   分類: {book['genre']}")
+            print(f"   Genre: {book['genre']}")
         
         if book['year']:
-            print(f"   出版年份: {book['year']}")
+            print(f"   Year: {book['year']}")
         
         print(f"   Asset ID: {book['asset_id']}")
         print("-" * 120)
     
-    # 統計資訊
-    print(f"\n\n📊 統計資訊:")
-    print(f"   總書籍數: {len(books)}")
+    # Statistics
+    print(f"\n\n📊 Statistics:")
+    print(f"   Total Books: {len(books)}")
     
     finished_count = sum(1 for b in books if b['is_finished'])
     reading_count = sum(1 for b in books if b['reading_progress'] and b['reading_progress'] > 0 and not b['is_finished'])
     not_started_count = len(books) - finished_count - reading_count
     
-    print(f"   已完成: {finished_count}")
-    print(f"   閱讀中: {reading_count}")
-    print(f"   未開始: {not_started_count}")
+    print(f"   Finished: {finished_count}")
+    print(f"   Reading: {reading_count}")
+    print(f"   Not Started: {not_started_count}")
 
 
 if __name__ == "__main__":

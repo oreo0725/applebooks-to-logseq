@@ -1,5 +1,5 @@
 """
-List All Notes - 讀取 Apple Books annotations (highlights & notes)
+List All Notes - Read Apple Books annotations (highlights & notes)
 """
 import sqlite3
 from pathlib import Path
@@ -8,7 +8,7 @@ from collections import defaultdict
 
 
 def convert_apple_time(timestamp):
-    """Apple 的時間戳記轉換函數"""
+    """Apple timestamp conversion function"""
     if not timestamp:
         return None
     apple_epoch = datetime(2001, 1, 1)
@@ -19,33 +19,33 @@ def convert_apple_time(timestamp):
 
 
 def get_annotation_db_path() -> Path:
-    """取得 AEAnnotation sqlite 路徑"""
+    """Get AEAnnotation sqlite path"""
     base = Path.home() / "Library/Containers/com.apple.iBooksX/Data/Documents/AEAnnotation"
     db_files = list(base.glob("AEAnnotation*.sqlite"))
     
     if not db_files:
-        raise RuntimeError("找不到 AEAnnotation sqlite，請確認 Apple Books 有同步完成")
+        raise RuntimeError("AEAnnotation sqlite not found, please ensure Apple Books sync is complete")
     
     return db_files[0]
 
 
 def get_library_db_path() -> Path:
-    """取得 BKLibrary sqlite 路徑"""
+    """Get BKLibrary sqlite path"""
     library_base = Path.home() / "Library/Containers/com.apple.iBooksX/Data/Documents/BKLibrary"
     library_files = list(library_base.glob("BKLibrary*.sqlite"))
     
     if not library_files:
-        raise RuntimeError("找不到 BKLibrary sqlite")
+        raise RuntimeError("BKLibrary sqlite not found")
     
     return library_files[0]
 
 
 def get_all_annotations() -> dict[str, list[dict]]:
     """
-    取得所有 annotations，按 asset_id 分組
+    Get all annotations, grouped by asset_id
     
     Returns:
-        dict: key 為 asset_id，value 為該書的 annotations 列表
+        dict: Key is asset_id, value is the list of annotations for that book
     """
     annotation_db_path = get_annotation_db_path()
     library_db_path = get_library_db_path()
@@ -90,45 +90,45 @@ def get_all_annotations() -> dict[str, list[dict]]:
 
 def get_annotations_by_asset_id(asset_id: str) -> list[dict]:
     """
-    取得指定書籍的 annotations
+    Get annotations for a specific book
     
     Args:
-        asset_id: 書籍 Asset ID
+        asset_id: Book Asset ID
         
     Returns:
-        該書的 annotations 列表
+        List of annotations for that book
     """
     all_annotations = get_all_annotations()
     return all_annotations.get(asset_id, [])
 
 
 def print_annotations(annotations_by_book: dict[str, list[dict]]) -> None:
-    """顯示所有 annotations"""
+    """Display all annotations"""
     if not annotations_by_book:
-        print("沒有找到任何 annotations")
+        print("No annotations found")
         return
     
     total_count = sum(len(anns) for anns in annotations_by_book.values())
-    print(f"總共找到 {total_count} 筆 annotations，來自 {len(annotations_by_book)} 本書\n")
+    print(f"Total found {total_count} annotations from {len(annotations_by_book)} books\n")
     print("=" * 100)
     
     for book_idx, (asset_id, annotations) in enumerate(annotations_by_book.items(), 1):
         if not annotations:
             continue
             
-        title = annotations[0].get("title", "未知書籍")
-        author = annotations[0].get("author", "未知作者")
+        title = annotations[0].get("title", "Unknown Book")
+        author = annotations[0].get("author", "Unknown Author")
         
         print(f"\n📚 [{book_idx}] {title}")
-        print(f"   作者: {author}")
+        print(f"   Author: {author}")
         print(f"   Asset ID: {asset_id}")
-        print(f"   共 {len(annotations)} 筆 annotations")
+        print(f"   Total {len(annotations)} annotations")
         print("=" * 100)
         
         for ann_idx, ann in enumerate(annotations, 1):
             created_str = ann.get("created_at", "N/A")
             
-            print(f"\n  [{ann_idx}] 建立時間: {created_str}")
+            print(f"\n  [{ann_idx}] Created At: {created_str}")
             
             if ann.get("text"):
                 print(f"  📝 Highlight:")

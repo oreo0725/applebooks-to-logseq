@@ -1,5 +1,5 @@
 """
-Template Engine - 解析並渲染 Logseq template
+Template Engine - Parse and render Logseq template
 """
 from datetime import datetime
 from pathlib import Path
@@ -22,14 +22,14 @@ TEMPLATE_FILE = Path(__file__).parent / "template.md"
 
 
 def load_template() -> str:
-    """載入 template，若不存在則使用預設"""
+    """Load template, use default if not exists"""
     if TEMPLATE_FILE.exists():
         return TEMPLATE_FILE.read_text(encoding="utf-8")
     return DEFAULT_TEMPLATE
 
 
 def save_default_template() -> None:
-    """儲存預設 template 供使用者修改"""
+    """Save default template for customization"""
     if not TEMPLATE_FILE.exists():
         TEMPLATE_FILE.write_text(DEFAULT_TEMPLATE, encoding="utf-8")
 
@@ -42,32 +42,28 @@ def render_template(
     sync_date: str | None = None,
 ) -> str:
     """
-    渲染 template 為 Logseq markdown 格式
+    Render template to Logseq markdown format
     
     Args:
-        template: Template 字串
-        title: 書名
-        author: 作者
-        highlights: Highlight 列表，每個包含 text, note, page, created_at
-        sync_date: 同步日期
+        template: Template string
+        title: Title
+        author: Author
+        highlights: List of highlights, each containing text, note, page, created_at
+        sync_date: Sync date
         
     Returns:
-        渲染後的 Logseq markdown
+        Rendered Logseq markdown
     """
     if sync_date is None:
         sync_date = datetime.now().strftime("%Y-%m-%d")
     
-    # 簡單的 template 解析（支援基本變數替換和 for loop）
     result = template
     
-    # 替換簡單變數
     result = result.replace("{{ author }}", author or "Unknown")
     result = result.replace("{{ title }}", title or "Unknown")
     result = result.replace("{{ sync_date }}", sync_date)
     
-    # 處理 for loop
     if "{% for highlight in highlights %}" in result:
-        # 找出 for loop 區塊
         start_marker = "{% for highlight in highlights %}"
         end_marker = "{% endfor %}"
         
@@ -79,15 +75,12 @@ def render_template(
             loop_template = result[start_idx + len(start_marker):end_idx]
             after = result[end_idx + len(end_marker):]
             
-            # 渲染每個 highlight
             rendered_highlights = []
             for h in highlights:
                 item = loop_template
                 
-                # 替換 highlight 變數
                 item = item.replace("{{ highlight.text }}", h.get("text", ""))
                 
-                # 處理條件: page
                 if "{% if highlight.page %}" in item:
                     page_start = "{% if highlight.page %}"
                     page_end = "{% endif %}"
@@ -101,7 +94,6 @@ def render_template(
                             page_content = ""
                         item = item[:ps] + page_content + item[pe + len(page_end):]
                 
-                # 處理條件: note
                 if "{% if highlight.note %}" in item:
                     note_start = "{% if highlight.note %}"
                     note_end = "{% endif %}"
@@ -119,7 +111,6 @@ def render_template(
             
             result = before + "\n".join(rendered_highlights) + after
     
-    # 清理多餘空行
     lines = [line for line in result.split("\n") if line.strip()]
     return "\n".join(lines)
 
@@ -130,15 +121,15 @@ def generate_page_content(
     highlights: list[dict],
 ) -> str:
     """
-    產生完整的 Logseq page 內容
+    Generate complete Logseq page content
     
     Args:
-        title: 書名
-        author: 作者
-        highlights: Highlight 列表
+        title: Title
+        author: Author
+        highlights: Highlight list
         
     Returns:
-        Logseq page 內容
+        Logseq page content
     """
     template = load_template()
     return render_template(template, title, author, highlights)
